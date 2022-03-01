@@ -55,7 +55,7 @@ class Leonhard(Node):
         self.client = None
         self.project_path = "/cluster/home/jcarvalho/projects/md_ic_pred"
 
-    def run_experiment(self, experiment_arguments, gpus, gpu_q, email, name):
+    def run_experiment(self, experiment_arguments, gpus, gpu_q, email, name,script):
         """ this is a non-blocking run """
         print("Sending a job to Leonhard.")
         N = '-N ' if email is True else ''
@@ -111,13 +111,13 @@ class Euler(Node):
     """ For executing computations on ETHZ Leonhard. """
     def __init__(self):
         super(Euler, self).__init__()
-        self.address = "euler.ethz.ch"
+        self.address = "ascardigli@euler.ethz.ch"
         # self.data_root = "/cluster/home/jcarvalho/projects/dssm_new/beta-vae/data/"
         self.data_scratch = "$TMPDIR/data/"
         self.client = None
-        self.project_path = "/cluster/home/jcarvalho/projects/dl_envs"
+        self.project_path = "euler/hydra_lightning_carvalho_template/hydra_lightning_carvalho_template/"
 
-    def node_run_experiment(self, experiment_config, gpus, gpu_q, gpu_model, email, name):
+    def node_run_experiment(self, experiment_config, gpus, gpu_q, gpu_model, email, name,run_script):
         """ this is a non-blocking run """
         print("Sending a job to Leonhard.")
         N = '-N ' if email is True else ''
@@ -129,18 +129,20 @@ class Euler(Node):
         # augment experiment arguments
 
         if experiment_config is not None:
-            experiment_arguments = '+experiment=' +experiment_config
+            experiment_arguments = 'experiment=' +experiment_config
 
         else:
             experiment_arguments = ""
 
-        command = 'source .bash_profile; cd ' + self.project_path + '; ' \
+             #'source .bash_profile; \ #TODO doesnot work for me (I dont have conda)
+        command = 'cd ' + self.project_path + '; ' \
                   'module load gcc/8.2.0; ' \
                   'module load python_gpu/3.8.5; ' \
                   'module load cuda/11.3.1; ' \
                   'module load eth_proxy; ' \
+                  'pip install -r requirements.txt; ' \
                   'bsub ' + N + J + '-n '+str(int(gpus*2))+' -W ' +str(gpu_q)+ ':00 -R "rusage[mem=10000,ngpus_excl_p='+str(gpus)+']" ' \
-                  "'python run.py " + experiment_arguments + "' "
+                  "'python " + run_script + " "+ experiment_arguments + "' " #TODO
 
         # command = 'mkdir test'
 
@@ -157,13 +159,16 @@ class Euler(Node):
         # "bsub -R rusage[ngpus_excl_p=1,mem=8000,scratch=5000] "
 
         print(command)
-        print("Sleep for 3 seconds..")
+        print("Sleep for 1 seconds..")
         import time
-        time.sleep(3)
+        time.sleep(1)
+
+        print(["ssh", "%s" % "ascardigli@euler.ethz.ch", command])
 
         # submit the job to Leonhard
-        subprocess.Popen(["ssh", "%s" % "jcarvalho@euler.ethz.ch", command],
-                         shell=False,
+        subprocess.Popen(["ssh", "%s" % "ascardigli@euler.ethz.ch",  command],
+                         shell=False
+                         ,
                          stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)
 
@@ -173,12 +178,12 @@ class Euler(Node):
 
 
 #def run_experiment(nodes, exp_name, models, repetitions, parameters):
-def run_experiment(nodes, gpus, gpu_q,gpu_model, email, experiment,name):
+def run_experiment(nodes, gpus, gpu_q,gpu_model, email, experiment,name,script):
 
         # find a computing node and run the experiment on it
         for node in nodes:
             print("Trying node: ", node.address)
-            success = node.node_run_experiment(experiment, gpus, gpu_q, gpu_model, email,name)
+            success = node.node_run_experiment(experiment, gpus, gpu_q, gpu_model, email,name,script)
             if success:
                 print("Connection established!")
                 break
